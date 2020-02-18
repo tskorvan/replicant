@@ -1,0 +1,7 @@
+database.host: localhost
+database.port: 5432
+database.name: replicant
+database.user: admin
+database.password: kreslo
+database.replication-slot-name: myslot
+log.level: 5
