@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,9 +11,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Operation struct {
+	Schema       string
+	Table        string
+	Columnnames  []string
+	Columntypes  []string
+	Columnvalues []interface{}
+}
+
+type Operations []Operation
+
 // Replicant - main replicant struc
 type Replicant struct {
 	db          *Database
+	filter      *Filter
 	actualPoint uint64
 	ctx         context.Context
 	CtxCancel   context.CancelFunc
@@ -24,6 +36,7 @@ func NewReplicant() *Replicant {
 	ctx, ctxCancel := context.WithCancel(context.Background())
 	return &Replicant{
 		db:        NewDatabase(),
+		filter:    NewFilter(),
 		ctx:       ctx,
 		CtxCancel: ctxCancel,
 		Done:      make(chan bool),
@@ -63,6 +76,10 @@ func (r *Replicant) Listen() {
 		err     error
 		message *pgx.ReplicationMessage
 	)
+
+	change := new(struct {
+		Change Operations
+	})
 	for {
 		log.Debug("Waiting for WAL message.")
 		message, err = r.db.WaitForReplicationMessage(r.ctx)
@@ -71,7 +88,13 @@ func (r *Replicant) Listen() {
 			r.Done <- true
 		}
 		if message.WalMessage != nil {
-			log.Debugf("Got WAL message: %v", string(message.WalMessage.WalData))
+			if err = json.Unmarshal(message.WalMessage.WalData, change); err != nil {
+				log.Errorf("Can't unmarshal json WAL message: %v", string(message.WalMessage.WalData))
+				continue
+			}
+			if len(change.Change) > 0 {
+				r.filter.Input <- change.Change
+			}
 		}
 		if message.ServerHeartbeat != nil {
 			log.Debugf("Got HeartBeat message %+v", message.ServerHeartbeat)
