@@ -6,20 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tskorvan/replicant/write"
+
 	"github.com/jackc/pgx"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
-
-type Operation struct {
-	Schema       string
-	Table        string
-	Columnnames  []string
-	Columntypes  []string
-	Columnvalues []interface{}
-}
-
-type Operations []Operation
 
 // Replicant - main replicant struc
 type Replicant struct {
@@ -32,15 +24,21 @@ type Replicant struct {
 }
 
 // NewReplicant - Create Replicant instance
-func NewReplicant() *Replicant {
+func NewReplicant() (*Replicant, error) {
 	ctx, ctxCancel := context.WithCancel(context.Background())
+	database := NewDatabase()
+	filter, err := NewFilter(database)
+	if err != nil {
+		ctxCancel()
+		return nil, err
+	}
 	return &Replicant{
-		db:        NewDatabase(),
-		filter:    NewFilter(),
+		db:        database,
+		filter:    filter,
 		ctx:       ctx,
 		CtxCancel: ctxCancel,
 		Done:      make(chan bool),
-	}
+	}, nil
 }
 
 // Init - Initialize replicant. Create replication slot and start replication
@@ -78,7 +76,7 @@ func (r *Replicant) Listen() {
 	)
 
 	change := new(struct {
-		Change Operations
+		Change write.Operations
 	})
 	for {
 		log.Debug("Waiting for WAL message.")

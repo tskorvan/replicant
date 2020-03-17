@@ -1,3 +1,4 @@
 [
-    {"schema": "public", "table": "replicant_test"}
+    {"schema": "public", "table": "replicant_test"},
+    {"schema": "public", "table": "measurement"}
 ]

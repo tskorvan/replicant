@@ -1,7 +1,15 @@
-database.host: localhost
-database.port: 5432
-database.name: replicant
-database.user: admin
-database.password: kreslo
-database.replication-slot-name: myslot
-log.level: 5
+database:
+  host: localhost
+  port: 5432
+  name: replicant
+  user: admin
+  password: kreslo
+  replication-slot-name: myslot
+log:
+  level: 5
+write:
+  stdOut:
+    enable: true
+  http:
+    enable: true
+    url: http://hh.sk

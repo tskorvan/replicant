@@ -11,7 +11,11 @@ func init() {
 }
 
 func main() {
-	r := NewReplicant()
+	r, err := NewReplicant()
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	defer r.Close()
 
 	// c := make(chan os.Signal)
