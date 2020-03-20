@@ -12,4 +12,4 @@ write:
     enable: true
   http:
     enable: true
-    url: http://hh.sk
+    url: http://localhost:8080/zaba

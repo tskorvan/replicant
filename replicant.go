@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -44,6 +45,14 @@ func NewReplicant() (*Replicant, error) {
 // Init - Initialize replicant. Create replication slot and start replication
 func (r *Replicant) Init() error {
 	slotName := viper.GetString("database.replication-slot-name")
+
+	if r.existReplicationSlot() {
+		if err := r.db.DropReplicationSlot(slotName); err != nil {
+			log.Fatal("Can't drop replication slot: ", err)
+		}
+		log.Infof("Replication slot %v closed.", slotName)
+	}
+
 	point, _, err := r.db.CreateReplicationSlotEx(slotName, "wal2json")
 	if err != nil {
 		return fmt.Errorf("Can't create replication slot: %v", err)
@@ -63,7 +72,8 @@ func (r *Replicant) Init() error {
 
 // Close - Close replicant, drop replication slot and close database connection
 func (r *Replicant) Close() {
-	r.dropSlot()
+	r.printWalPosition()
+	r.filter.Close()
 	r.db.Close()
 	log.Info("Replicant closed.")
 }
@@ -75,6 +85,8 @@ func (r *Replicant) Listen() {
 		message *pgx.ReplicationMessage
 	)
 
+	go r.filter.Listen()
+
 	change := new(struct {
 		Change write.Operations
 	})
@@ -84,6 +96,7 @@ func (r *Replicant) Listen() {
 		if err != nil {
 			log.Error("Can't get replication message:", err)
 			r.Done <- true
+			return
 		}
 		if message.WalMessage != nil {
 			if err = json.Unmarshal(message.WalMessage.WalData, change); err != nil {
@@ -133,9 +146,21 @@ func (r *Replicant) sendHeartbeat() error {
 	return nil
 }
 
-func (r *Replicant) dropSlot() {
-	if err := r.db.DropReplicationSlot(viper.GetString("database.replication-slot-name")); err != nil {
-		log.Fatal("Can't drop replication slot: ", err)
+// Check if replication slot exists
+func (r *Replicant) existReplicationSlot() bool {
+	var exists int
+	err := r.db.QueryRow("SELECT 1 FROM pg_replication_slots WHERE slot_name = $1", viper.GetString("database.replication-slot-name")).Scan(&exists)
+	switch err {
+	case sql.ErrNoRows:
+		return false
+	case nil:
+		return true
+	default:
+		log.Error(err)
+		return false
 	}
-	log.Infof("Replication slot %v closed.", viper.GetString("database.replication-slot-name"))
+}
+
+func (r *Replicant) printWalPosition() {
+	//TODO
 }

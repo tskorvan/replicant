@@ -39,11 +39,11 @@ func NewFilter(database *Database) (*Filter, error) {
 	if err := f.loadTableMap(); err != nil {
 		return nil, err
 	}
-	go f.listen()
 	return f, nil
 }
 
-func (f *Filter) listen() {
+// Listen - Listen on filter input chanel
+func (f *Filter) Listen() {
 	for {
 		select {
 		case value := <-f.Input:
@@ -134,4 +134,9 @@ func (f *Filter) loadTableMap() error {
 	}
 	defer rows.Close()
 	return rows.Err()
+}
+
+func (f *Filter) Close() {
+	f.Writer.Close()
+	close(f.Input)
 }

@@ -1,5 +1,6 @@
 package write
 
+// Operation - structure for database operations, wall2json format
 type Operation struct {
 	Schema       string
 	Table        string
@@ -8,4 +9,5 @@ type Operation struct {
 	Columnvalues []interface{}
 }
 
+// Operations - Array of Operation structs
 type Operations []Operation

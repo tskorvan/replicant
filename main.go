@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -18,14 +22,7 @@ func main() {
 	}
 	defer r.Close()
 
-	// c := make(chan os.Signal)
-	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	// go func(r *Replicant) {
-	// 	log.Info("waiting for unterrupt")
-	// 	<-c
-	// 	r.Close()
-	// 	os.Exit(1)
-	// }(r)
+	catchInterrupt(r)
 
 	if err := r.Init(); err != nil {
 		log.Error(err)
@@ -38,7 +35,12 @@ func main() {
 }
 
 func catchInterrupt(r *Replicant) {
-
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func(r *Replicant) {
+		<-c
+		r.CtxCancel()
+	}(r)
 }
 
 func initLogger() {
